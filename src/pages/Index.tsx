@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
 import FortuneWheel, { Prize } from '@/components/FortuneWheel';
 import AdminPanel from '@/components/AdminPanel';
@@ -16,15 +16,27 @@ const initialPrizes: Prize[] = [
   { id: '6', label: 'Бонус', icon: 'Gem', color: '#3B82F6' },
 ];
 
+const STORAGE_KEY = 'fortune_link';
+
 const genLink = () =>
   `${window.location.origin}/spin/${Math.random().toString(36).slice(2, 10)}`;
+
+const loadLinkState = (): { link: string; used: boolean } => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) { /* ignore */ }
+  const link = genLink();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ link, used: false }));
+  return { link, used: false };
+};
 
 const Index = () => {
   const [view, setView] = useState<'play' | 'admin'>('play');
   const [prizes, setPrizes] = useState<Prize[]>(initialPrizes);
   const [logs, setLogs] = useState<{ prize: string; time: string }[]>([]);
-  const [spinLink, setSpinLink] = useState(genLink());
-  const [linkUsed, setLinkUsed] = useState(false);
+  const [spinLink, setSpinLink] = useState(() => loadLinkState().link);
+  const [linkUsed, setLinkUsed] = useState(() => loadLinkState().used);
   const [authed, setAuthed] = useState(false);
   const [pwInput, setPwInput] = useState('');
   const [pwError, setPwError] = useState(false);
@@ -43,13 +55,18 @@ const Index = () => {
     setView('admin');
   };
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ link: spinLink, used: linkUsed }));
+  }, [spinLink, linkUsed]);
+
   const handleResult = (prize: Prize) => {
     setLogs((l) => [...l, { prize: prize.label, time: new Date().toISOString() }]);
     setLinkUsed(true);
   };
 
   const refreshLink = () => {
-    setSpinLink(genLink());
+    const newLink = genLink();
+    setSpinLink(newLink);
     setLinkUsed(false);
   };
 
